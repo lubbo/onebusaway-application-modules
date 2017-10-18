@@ -240,7 +240,9 @@ class StopScheduleBeanServiceImpl implements StopScheduleBeanService {
 
         stiBean.setArrivalEnabled(dropOffEnabled && !firstStopTimeInBlock);
         stiBean.setDepartureEnabled(pickupEnabled && !lastStopTimeInBlock);
-        
+
+        stiBean.setStopHeadsign(sti.getStopTime().getStopTime().getStopHeadsign());
+
         String directionId = trip.getDirectionId();
         if (directionId == null)
           directionId = "0";
