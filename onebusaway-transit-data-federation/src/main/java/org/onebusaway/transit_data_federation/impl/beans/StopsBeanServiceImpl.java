@@ -19,6 +19,7 @@ package org.onebusaway.transit_data_federation.impl.beans;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.List;
 
 import org.apache.lucene.queryParser.ParseException;
@@ -36,6 +37,7 @@ import org.onebusaway.transit_data.model.StopBean;
 import org.onebusaway.transit_data.model.StopsBean;
 import org.onebusaway.transit_data_federation.model.SearchResult;
 import org.onebusaway.transit_data_federation.services.AgencyAndIdLibrary;
+import org.onebusaway.transit_data_federation.services.AgencyService;
 import org.onebusaway.transit_data_federation.services.StopSearchService;
 import org.onebusaway.transit_data_federation.services.beans.GeospatialBeanService;
 import org.onebusaway.transit_data_federation.services.beans.StopBeanService;
@@ -66,14 +68,21 @@ class StopsBeanServiceImpl implements StopsBeanService {
 
   @Autowired
   private TransitGraphDao _transitGraphDao;
+  
+  @Autowired
+  private AgencyService _agencyService;
 
   @Override
   public StopsBean getStops(SearchQueryBean queryBean) throws ServiceException {
     String query = queryBean.getQuery();
-    if (query == null)
-      return getStopsByBounds(queryBean);
+    String name = queryBean.getName();
+    if (query != null)
+    		return getStopsByBoundsAndQuery(queryBean);
+    else if (name != null)
+    		return getStopsByName(queryBean);
     else
-      return getStopsByBoundsAndQuery(queryBean);
+    		return getStopsByBounds(queryBean);
+      
   }
 
   private StopsBean getStopsByBounds(SearchQueryBean queryBean)
@@ -145,6 +154,50 @@ class StopsBeanServiceImpl implements StopsBeanService {
       stopBeans.add(closest.getMinElement());
 
     return constructResult(stopBeans, limitExceeded);
+  }
+  
+  private StopsBean getStopsByName(SearchQueryBean queryBean)
+      throws ServiceException {
+
+    String name = queryBean.getName();
+    int maxCount = queryBean.getMaxCount();
+    
+    List<StopBean> stopBeans = new ArrayList<StopBean>();
+
+		List<String> allAgencyIds = _agencyService.getAllAgencyIds();
+		for (String agencyId : allAgencyIds) {
+
+			AgencyEntry agency = _transitGraphDao.getAgencyForId(agencyId);
+			if (agency == null)
+				throw new NoSuchAgencyServiceException(agencyId);
+			
+			for (StopEntry stop : agency.getStops()) {
+				AgencyAndId agencyAndId = stop.getId();
+				StopBean stopBean = _stopBeanService.getStopForId(agencyAndId);
+				String stopName = stopBean.getName();
+				if (stopName.toUpperCase().contains(name.toUpperCase())) {
+					stopBeans.add(stopBean);
+				}
+			}
+    		
+    }
+    
+		boolean limitExceeded = BeanServiceSupport.checkLimitExceeded(stopBeans,
+        maxCount);
+		
+    Collections.sort(stopBeans, new Comparator<StopBean>() {
+
+			@Override
+			public int compare(StopBean o1, StopBean o2) {
+				return o1.getName().toUpperCase().compareTo(o2.getName().toUpperCase());
+			}
+    		
+    });
+    
+    StopsBean stopsBean = new StopsBean();
+    stopsBean.setStops(stopBeans);
+    stopsBean.setLimitExceeded(limitExceeded);
+    return stopsBean;
   }
 
   @Override

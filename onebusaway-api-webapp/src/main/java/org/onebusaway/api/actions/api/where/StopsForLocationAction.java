@@ -60,6 +60,8 @@ public class StopsForLocationAction extends ApiActionSupport {
   private MaxCountSupport _maxCount = new MaxCountSupport(100, 250);
 
   private String _query;
+  
+  private String _name;
 
   public StopsForLocationAction() {
     super(LegacyV1ApiSupport.isDefaultToV1() ? V1 : V2);
@@ -88,6 +90,10 @@ public class StopsForLocationAction extends ApiActionSupport {
   public void setQuery(String query) {
     _query = query;
   }
+  
+  public void setName(String name) {
+    _name = name;
+  }
 
   public void setMaxCount(int maxCount) {
     _maxCount.setMaxCount(maxCount);
@@ -111,6 +117,9 @@ public class StopsForLocationAction extends ApiActionSupport {
     searchQuery.setType(EQueryType.BOUNDS);
     if (_query != null) {
       searchQuery.setQuery(_query);
+      searchQuery.setType(EQueryType.BOUNDS_OR_CLOSEST);
+    } else if (_name != null) {
+    		searchQuery.setName(_name);
       searchQuery.setType(EQueryType.BOUNDS_OR_CLOSEST);
     }
 

@@ -33,6 +33,8 @@ public class SearchQueryBean implements Serializable {
   private CoordinateBounds bounds;
 
   private String query;
+  
+  private String name;
 
   private int maxCount;
   
@@ -63,7 +65,15 @@ public class SearchQueryBean implements Serializable {
     this.query = query;
   }
 
-  public int getMaxCount() {
+  public String getName() {
+		return name;
+	}
+
+	public void setName(String name) {
+		this.name = name;
+	}
+
+	public int getMaxCount() {
     return maxCount;
   }
 
