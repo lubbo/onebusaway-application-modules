@@ -20,6 +20,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
+import java.util.Date;
 import java.util.List;
 
 import org.apache.lucene.queryParser.ParseException;
@@ -89,6 +90,7 @@ class StopsBeanServiceImpl implements StopsBeanService {
       throws ServiceException {
 
     CoordinateBounds bounds = queryBean.getBounds();
+    Date date = queryBean.getDate();
 
     List<AgencyAndId> stopIds = _geospatialBeanService.getStopsByBounds(bounds);
 
@@ -97,7 +99,7 @@ class StopsBeanServiceImpl implements StopsBeanService {
     List<StopBean> stopBeans = new ArrayList<StopBean>();
 
     for (AgencyAndId stopId : stopIds) {
-      StopBean stopBean = _stopBeanService.getStopForId(stopId);
+      StopBean stopBean = (date == null) ? _stopBeanService.getStopForId(stopId) : _stopBeanService.getStopForIdAndDate(stopId,date);
       if (stopBean == null)
         throw new ServiceException();
 
@@ -120,6 +122,7 @@ class StopsBeanServiceImpl implements StopsBeanService {
     CoordinateBounds bounds = queryBean.getBounds();
     String query = queryBean.getQuery();
     int maxCount = queryBean.getMaxCount();
+    Date date = queryBean.getDate();
 
     CoordinatePoint center = SphericalGeometryLibrary.getCenterOfBounds(bounds);
 
@@ -138,7 +141,7 @@ class StopsBeanServiceImpl implements StopsBeanService {
     List<StopBean> stopBeans = new ArrayList<StopBean>();
 
     for (AgencyAndId aid : stops.getResults()) {
-      StopBean stopBean = _stopBeanService.getStopForId(aid);
+    		StopBean stopBean = (date == null) ? _stopBeanService.getStopForId(aid) : _stopBeanService.getStopForIdAndDate(aid,date);
       if (bounds.contains(stopBean.getLat(), stopBean.getLon()))
         stopBeans.add(stopBean);
       double distance = SphericalGeometryLibrary.distance(center.getLat(),
@@ -161,6 +164,7 @@ class StopsBeanServiceImpl implements StopsBeanService {
 
     String name = queryBean.getName();
     int maxCount = queryBean.getMaxCount();
+    Date date = queryBean.getDate();
     
     List<StopBean> stopBeans = new ArrayList<StopBean>();
 
@@ -173,7 +177,7 @@ class StopsBeanServiceImpl implements StopsBeanService {
 			
 			for (StopEntry stop : agency.getStops()) {
 				AgencyAndId agencyAndId = stop.getId();
-				StopBean stopBean = _stopBeanService.getStopForId(agencyAndId);
+				StopBean stopBean = (date == null) ? _stopBeanService.getStopForId(agencyAndId) : _stopBeanService.getStopForIdAndDate(agencyAndId,date);
 				String stopName = stopBean.getName();
 				if (stopName.toUpperCase().contains(name.toUpperCase())) {
 					stopBeans.add(stopBean);

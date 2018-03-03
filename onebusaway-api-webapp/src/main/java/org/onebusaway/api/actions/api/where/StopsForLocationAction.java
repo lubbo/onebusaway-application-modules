@@ -16,6 +16,7 @@
 package org.onebusaway.api.actions.api.where;
 
 import java.io.IOException;
+import java.util.Date;
 
 import org.apache.struts2.rest.DefaultHttpHeaders;
 import org.onebusaway.api.actions.api.ApiActionSupport;
@@ -62,6 +63,8 @@ public class StopsForLocationAction extends ApiActionSupport {
   private String _query;
   
   private String _name;
+  
+  private Date _date;
 
   public StopsForLocationAction() {
     super(LegacyV1ApiSupport.isDefaultToV1() ? V1 : V2);
@@ -94,6 +97,10 @@ public class StopsForLocationAction extends ApiActionSupport {
   public void setName(String name) {
     _name = name;
   }
+  
+  public void setDate(Date date) {
+  		_date = date;
+  }
 
   public void setMaxCount(int maxCount) {
     _maxCount.setMaxCount(maxCount);
@@ -115,6 +122,9 @@ public class StopsForLocationAction extends ApiActionSupport {
     searchQuery.setBounds(bounds);
     searchQuery.setMaxCount(maxCount);
     searchQuery.setType(EQueryType.BOUNDS);
+    //TODO: check and set null
+    searchQuery.setDate(_date);
+    
     if (_query != null) {
       searchQuery.setQuery(_query);
       searchQuery.setType(EQueryType.BOUNDS_OR_CLOSEST);
