@@ -107,7 +107,7 @@ public class GenerateStopSearchIndexTask implements Runnable {
     document.add(new Field(StopSearchIndexConstants.FIELD_AGENCY_ID,
         id.getAgencyId(), Field.Store.YES, Field.Index.NO));
     document.add(new Field(StopSearchIndexConstants.FIELD_STOP_ID, id.getId(),
-        Field.Store.YES, Field.Index.ANALYZED));
+        Field.Store.YES, Field.Index.NOT_ANALYZED));
 
     // Code
     if (narrative.getCode() != null && narrative.getCode().length() > 0)

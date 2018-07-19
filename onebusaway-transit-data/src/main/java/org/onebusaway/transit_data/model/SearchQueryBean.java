@@ -17,6 +17,7 @@ package org.onebusaway.transit_data.model;
 
 import java.io.Serializable;
 import java.util.Date;
+import java.util.List;
 
 import org.onebusaway.geospatial.model.CoordinateBounds;
 
@@ -36,6 +37,8 @@ public class SearchQueryBean implements Serializable {
   private String query;
   
   private String name;
+  
+  private String stopIds;
   
   private Date date;
 
@@ -99,4 +102,12 @@ public class SearchQueryBean implements Serializable {
   public void setMinScoreToKeep(double minScoreToKeep) {
     this.minScoreToKeep = minScoreToKeep;
   }
+
+	public String getStopIds() {
+		return stopIds;
+	}
+
+	public void setStopIds(String stopIds) {
+		this.stopIds = stopIds;
+	}
 }

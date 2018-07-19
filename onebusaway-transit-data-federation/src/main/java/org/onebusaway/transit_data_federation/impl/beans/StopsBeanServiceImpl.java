@@ -54,119 +54,161 @@ import org.springframework.stereotype.Component;
 @Component
 class StopsBeanServiceImpl implements StopsBeanService {
 
-  private static Logger _log = LoggerFactory.getLogger(StopsBeanServiceImpl.class);
+	private static Logger _log = LoggerFactory.getLogger(StopsBeanServiceImpl.class);
 
-  private static final double MIN_SCORE = 1.0;
+	private static final double MIN_SCORE = 1.0;
 
-  @Autowired
-  private StopSearchService _searchService;
+	@Autowired
+	private StopSearchService _searchService;
 
-  @Autowired
-  private StopBeanService _stopBeanService;
+	@Autowired
+	private StopBeanService _stopBeanService;
 
-  @Autowired
-  private GeospatialBeanService _geospatialBeanService;
+	@Autowired
+	private GeospatialBeanService _geospatialBeanService;
 
-  @Autowired
-  private TransitGraphDao _transitGraphDao;
-  
-  @Autowired
-  private AgencyService _agencyService;
+	@Autowired
+	private TransitGraphDao _transitGraphDao;
 
-  @Override
-  public StopsBean getStops(SearchQueryBean queryBean) throws ServiceException {
-    String query = queryBean.getQuery();
-    String name = queryBean.getName();
-    if (query != null)
-    		return getStopsByBoundsAndQuery(queryBean);
-    else if (name != null)
-    		return getStopsByName(queryBean);
-    else
-    		return getStopsByBounds(queryBean);
-      
-  }
+	@Autowired
+	private AgencyService _agencyService;
 
-  private StopsBean getStopsByBounds(SearchQueryBean queryBean)
-      throws ServiceException {
+	@Override
+	public StopsBean getStops(SearchQueryBean queryBean) throws ServiceException {
+		String query = queryBean.getQuery();
+		String name = queryBean.getName();
+		String stopIds = queryBean.getStopIds();
 
-    CoordinateBounds bounds = queryBean.getBounds();
-    Date date = queryBean.getDate();
+		StopsBean result = null;
+		if (query != null) {
+			result = getStopsByBoundsAndQuery(queryBean);
+		} else if (name != null) {
+			result = getStopsByName(queryBean);
+		} else {
+			result = getStopsByBounds(queryBean);
+			if (stopIds != null) {
+				StopsBean stopsByIds = getStopsByIds(queryBean);
+				stopsByIds.getStops().addAll(result.getStops());
+				result.setStops(stopsByIds.getStops());
+			}
+		}
+		
+		return result;
 
-    List<AgencyAndId> stopIds = _geospatialBeanService.getStopsByBounds(bounds);
+	}
 
-    boolean limitExceeded = BeanServiceSupport.checkLimitExceeded(stopIds,
-        queryBean.getMaxCount());
-    List<StopBean> stopBeans = new ArrayList<StopBean>();
+	private StopsBean getStopsByBounds(SearchQueryBean queryBean) throws ServiceException {
 
-    for (AgencyAndId stopId : stopIds) {
-      StopBean stopBean = (date == null) ? _stopBeanService.getStopForId(stopId) : _stopBeanService.getStopForIdAndDate(stopId,date);
-      if (stopBean == null)
-        throw new ServiceException();
+		CoordinateBounds bounds = queryBean.getBounds();
+		Date date = queryBean.getDate();
 
-      /**
-       * If the stop doesn't have any routes actively serving it, don't include
-       * it in the results
-       */
-      if (stopBean.getRoutes().isEmpty())
-        continue;
+		List<AgencyAndId> stopIds = _geospatialBeanService.getStopsByBounds(bounds);
 
-      stopBeans.add(stopBean);
-    }
+		boolean limitExceeded = BeanServiceSupport.checkLimitExceeded(stopIds, queryBean.getMaxCount());
+		List<StopBean> stopBeans = new ArrayList<StopBean>();
 
-    return constructResult(stopBeans, limitExceeded);
-  }
+		for (AgencyAndId stopId : stopIds) {
+			StopBean stopBean = (date == null) ? _stopBeanService.getStopForId(stopId)
+					: _stopBeanService.getStopForIdAndDate(stopId, date);
+			if (stopBean == null)
+				throw new ServiceException();
 
-  private StopsBean getStopsByBoundsAndQuery(SearchQueryBean queryBean)
-      throws ServiceException {
+			/**
+			 * If the stop doesn't have any routes actively serving it, don't include it in
+			 * the results
+			 */
+			if (stopBean.getRoutes().isEmpty())
+				continue;
 
-    CoordinateBounds bounds = queryBean.getBounds();
-    String query = queryBean.getQuery();
-    int maxCount = queryBean.getMaxCount();
-    Date date = queryBean.getDate();
+			stopBeans.add(stopBean);
+		}
 
-    CoordinatePoint center = SphericalGeometryLibrary.getCenterOfBounds(bounds);
+		return constructResult(stopBeans, limitExceeded);
+	}
 
-    SearchResult<AgencyAndId> stops;
-    try {
-      stops = _searchService.searchForStopsByCode(query, 10, MIN_SCORE);
-    } catch (ParseException e) {
-      throw new InvalidArgumentServiceException("query", "queryParseError");
-    } catch (IOException e) {
-      _log.error("error executing stop search: query=" + query, e);
-      e.printStackTrace();
-      throw new ServiceException();
-    }
+	private StopsBean getStopsByBoundsAndQuery(SearchQueryBean queryBean) throws ServiceException {
 
-    Min<StopBean> closest = new Min<StopBean>();
-    List<StopBean> stopBeans = new ArrayList<StopBean>();
+		CoordinateBounds bounds = queryBean.getBounds();
+		String query = queryBean.getQuery();
+		int maxCount = queryBean.getMaxCount();
 
-    for (AgencyAndId aid : stops.getResults()) {
-    		StopBean stopBean = (date == null) ? _stopBeanService.getStopForId(aid) : _stopBeanService.getStopForIdAndDate(aid,date);
-      if (bounds.contains(stopBean.getLat(), stopBean.getLon()))
-        stopBeans.add(stopBean);
-      double distance = SphericalGeometryLibrary.distance(center.getLat(),
-          center.getLon(), stopBean.getLat(), stopBean.getLon());
-      closest.add(distance, stopBean);
-    }
+		CoordinatePoint center = SphericalGeometryLibrary.getCenterOfBounds(bounds);
 
-    boolean limitExceeded = BeanServiceSupport.checkLimitExceeded(stopBeans,
-        maxCount);
+		SearchResult<AgencyAndId> stops;
+		try {
+			stops = _searchService.searchForStopsByCode(query, 10, MIN_SCORE);
+		} catch (ParseException e) {
+			throw new InvalidArgumentServiceException("query", "queryParseError");
+		} catch (IOException e) {
+			_log.error("error executing stop search: query=" + query, e);
+			e.printStackTrace();
+			throw new ServiceException();
+		}
 
-    // If nothing was found in range, add the closest result
-    if (stopBeans.isEmpty() && !closest.isEmpty())
-      stopBeans.add(closest.getMinElement());
+		Min<StopBean> closest = new Min<StopBean>();
+		List<StopBean> stopBeans = new ArrayList<StopBean>();
 
-    return constructResult(stopBeans, limitExceeded);
-  }
-  
-  private StopsBean getStopsByName(SearchQueryBean queryBean)
-      throws ServiceException {
+		for (AgencyAndId aid : stops.getResults()) {
+			StopBean stopBean = _stopBeanService.getStopForId(aid);
+			if (bounds.contains(stopBean.getLat(), stopBean.getLon()))
+				stopBeans.add(stopBean);
+			double distance = SphericalGeometryLibrary.distance(center.getLat(), center.getLon(), stopBean.getLat(),
+					stopBean.getLon());
+			closest.add(distance, stopBean);
+		}
 
-    String name = queryBean.getName();
-    int maxCount = queryBean.getMaxCount();
-    Date date = queryBean.getDate();
-    
-    List<StopBean> stopBeans = new ArrayList<StopBean>();
+		boolean limitExceeded = BeanServiceSupport.checkLimitExceeded(stopBeans, maxCount);
+
+		// If nothing was found in range, add the closest result
+		if (stopBeans.isEmpty() && !closest.isEmpty())
+			stopBeans.add(closest.getMinElement());
+
+		return constructResult(stopBeans, limitExceeded);
+	}
+
+	private StopsBean getStopsByIds(SearchQueryBean queryBean) throws ServiceException {
+
+		int maxCount = queryBean.getMaxCount();
+		Date date = queryBean.getDate();
+		double minScoreToKeep = queryBean.getMinScoreToKeep();
+
+		String stopIds = queryBean.getStopIds();
+
+		SearchResult<AgencyAndId> stops = new SearchResult<>();
+		try {
+			if (stopIds != null) {
+				stops = _searchService.searchForStopsById(stopIds, maxCount, minScoreToKeep);
+			}
+		} catch (ParseException e) {
+			throw new InvalidArgumentServiceException("ids", "queryParseError");
+		} catch (IOException e) {
+			_log.error("error executing stop search: ids=" + stopIds, e);
+			e.printStackTrace();
+			throw new ServiceException();
+		}
+
+		List<StopBean> stopBeans = new ArrayList<StopBean>();
+
+		for (AgencyAndId aid : stops.getResults()) {
+			StopBean stopBean = (date == null) ? _stopBeanService.getStopForId(aid)
+					: _stopBeanService.getStopForIdAndDate(aid, date);
+
+			stopBeans.add(stopBean);
+
+		}
+
+		boolean limitExceeded = BeanServiceSupport.checkLimitExceeded(stopBeans, maxCount);
+
+		return constructResult(stopBeans, limitExceeded);
+	}
+
+	private StopsBean getStopsByName(SearchQueryBean queryBean) throws ServiceException {
+
+		String name = queryBean.getName();
+		int maxCount = queryBean.getMaxCount();
+		Date date = queryBean.getDate();
+
+		List<StopBean> stopBeans = new ArrayList<StopBean>();
 
 		List<String> allAgencyIds = _agencyService.getAllAgencyIds();
 		for (String agencyId : allAgencyIds) {
@@ -174,58 +216,57 @@ class StopsBeanServiceImpl implements StopsBeanService {
 			AgencyEntry agency = _transitGraphDao.getAgencyForId(agencyId);
 			if (agency == null)
 				throw new NoSuchAgencyServiceException(agencyId);
-			
+
 			for (StopEntry stop : agency.getStops()) {
 				AgencyAndId agencyAndId = stop.getId();
-				StopBean stopBean = (date == null) ? _stopBeanService.getStopForId(agencyAndId) : _stopBeanService.getStopForIdAndDate(agencyAndId,date);
+				StopBean stopBean = (date == null) ? _stopBeanService.getStopForId(agencyAndId)
+						: _stopBeanService.getStopForIdAndDate(agencyAndId, date);
 				String stopName = stopBean.getName();
 				if (stopName.toUpperCase().contains(name.toUpperCase())) {
 					stopBeans.add(stopBean);
 				}
 			}
-    		
-    }
-    
-		boolean limitExceeded = BeanServiceSupport.checkLimitExceeded(stopBeans,
-        maxCount);
-		
-    Collections.sort(stopBeans, new Comparator<StopBean>() {
+
+		}
+
+		boolean limitExceeded = BeanServiceSupport.checkLimitExceeded(stopBeans, maxCount);
+
+		Collections.sort(stopBeans, new Comparator<StopBean>() {
 
 			@Override
 			public int compare(StopBean o1, StopBean o2) {
 				return o1.getName().toUpperCase().compareTo(o2.getName().toUpperCase());
 			}
-    		
-    });
-    
-    StopsBean stopsBean = new StopsBean();
-    stopsBean.setStops(stopBeans);
-    stopsBean.setLimitExceeded(limitExceeded);
-    return stopsBean;
-  }
 
-  @Override
-  public ListBean<String> getStopsIdsForAgencyId(String agencyId) {
-    AgencyEntry agency = _transitGraphDao.getAgencyForId(agencyId);
-    if (agency == null)
-      throw new NoSuchAgencyServiceException(agencyId);
-    List<String> ids = new ArrayList<String>();
-    for (StopEntry stop : agency.getStops()) {
-      AgencyAndId id = stop.getId();
-      ids.add(AgencyAndIdLibrary.convertToString(id));
-    }
-    return new ListBean<String>(ids, false);
-  }
+		});
 
-  private StopsBean constructResult(List<StopBean> stopBeans,
-      boolean limitExceeded) {
+		StopsBean stopsBean = new StopsBean();
+		stopsBean.setStops(stopBeans);
+		stopsBean.setLimitExceeded(limitExceeded);
+		return stopsBean;
+	}
 
-    Collections.sort(stopBeans, new StopBeanIdComparator());
+	@Override
+	public ListBean<String> getStopsIdsForAgencyId(String agencyId) {
+		AgencyEntry agency = _transitGraphDao.getAgencyForId(agencyId);
+		if (agency == null)
+			throw new NoSuchAgencyServiceException(agencyId);
+		List<String> ids = new ArrayList<String>();
+		for (StopEntry stop : agency.getStops()) {
+			AgencyAndId id = stop.getId();
+			ids.add(AgencyAndIdLibrary.convertToString(id));
+		}
+		return new ListBean<String>(ids, false);
+	}
 
-    StopsBean result = new StopsBean();
-    result.setStops(stopBeans);
-    result.setLimitExceeded(limitExceeded);
-    return result;
-  }
+	private StopsBean constructResult(List<StopBean> stopBeans, boolean limitExceeded) {
+
+		Collections.sort(stopBeans, new StopBeanIdComparator());
+
+		StopsBean result = new StopsBean();
+		result.setStops(stopBeans);
+		result.setLimitExceeded(limitExceeded);
+		return result;
+	}
 
 }

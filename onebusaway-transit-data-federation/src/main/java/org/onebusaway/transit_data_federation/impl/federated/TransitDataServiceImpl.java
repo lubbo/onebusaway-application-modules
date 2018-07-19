@@ -269,7 +269,10 @@ class TransitDataServiceImpl implements TransitDataService {
 
   @Override
   public StopsBean getStops(SearchQueryBean query) throws ServiceException {
-  		if(query.getName() == null || query.getName().length() == 0) {
+  		if( 
+  				(query.getName() == null || query.getName().length() == 0 )
+  				&& (query.getStopIds() == null || query.getStopIds().isEmpty())
+  				) {
   			checkBounds(query.getBounds());
   		}
     return _stopsBeanService.getStops(query);
