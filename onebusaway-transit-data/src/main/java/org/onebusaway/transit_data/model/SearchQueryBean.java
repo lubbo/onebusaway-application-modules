@@ -38,7 +38,7 @@ public class SearchQueryBean implements Serializable {
   
   private String name;
   
-  private String stopIds;
+  private List<String> stopIds;
   
   private Date date;
 
@@ -103,11 +103,11 @@ public class SearchQueryBean implements Serializable {
     this.minScoreToKeep = minScoreToKeep;
   }
 
-	public String getStopIds() {
+	public List<String> getStopIds() {
 		return stopIds;
 	}
 
-	public void setStopIds(String stopIds) {
+	public void setStopIds(List<String> stopIds) {
 		this.stopIds = stopIds;
 	}
 }

@@ -16,6 +16,7 @@
 package org.onebusaway.api.actions.api.where;
 
 import java.io.IOException;
+import java.util.Arrays;
 import java.util.Date;
 import java.util.List;
 
@@ -139,7 +140,8 @@ public class StopsForLocationAction extends ApiActionSupport {
     		searchQuery.setName(_name);
       searchQuery.setType(EQueryType.BOUNDS_OR_CLOSEST);
     } else if (_stopIds != null) {
-    	searchQuery.setStopIds(_stopIds);
+    	String[] ids = _stopIds.split(";");
+    	searchQuery.setStopIds(Arrays.asList(ids));
     }
 
     try {

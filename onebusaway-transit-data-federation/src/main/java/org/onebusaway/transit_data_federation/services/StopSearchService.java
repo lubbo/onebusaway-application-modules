@@ -47,21 +47,6 @@ public interface StopSearchService {
   public SearchResult<AgencyAndId> searchForStopsByCode(String code,
       int maxResultCount, double minScoreToKeep) throws IOException,
       ParseException;
-  
-  /**
-   * Search for stop ids.
-   * 
-   * @param idQuery the stop id query
-   * @param maxResultCount maximum number of results to return
-   * @param minScoreToKeep implementation-specific score cutoff for search
-   *          results
-   * @return a search result for matching stop ids
-   * @throws IOException
-   * @throws ParseException
-   */
-  public SearchResult<AgencyAndId> searchForStopsById(String idQuery,
-      int maxResultCount, double minScoreToKeep) throws IOException,
-      ParseException;
 
   /**
    * Search for stop ids by stop name (see {@link Stop#getName()})

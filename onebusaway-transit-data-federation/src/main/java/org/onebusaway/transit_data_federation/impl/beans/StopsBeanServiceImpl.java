@@ -18,6 +18,7 @@ package org.onebusaway.transit_data_federation.impl.beans;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.Date;
@@ -77,7 +78,7 @@ class StopsBeanServiceImpl implements StopsBeanService {
 	public StopsBean getStops(SearchQueryBean queryBean) throws ServiceException {
 		String query = queryBean.getQuery();
 		String name = queryBean.getName();
-		String stopIds = queryBean.getStopIds();
+		List<String> stopIds = queryBean.getStopIds();
 
 		StopsBean result = null;
 		if (query != null) {
@@ -86,13 +87,32 @@ class StopsBeanServiceImpl implements StopsBeanService {
 			result = getStopsByName(queryBean);
 		} else {
 			result = getStopsByBounds(queryBean);
+
 			if (stopIds != null) {
+
+				List<String> idsToSearch = new ArrayList<>();
+				for (String id : stopIds) {
+
+					boolean alreadyRetrieved = false;
+					for (StopBean stop : result.getStops()) {
+						if (stop.getId().equals(id)) {
+							alreadyRetrieved = true;
+							break;
+						}
+					}
+					if (!alreadyRetrieved) {
+						idsToSearch.add(id);
+					}
+				}
+
+				queryBean.setStopIds(idsToSearch);
+
 				StopsBean stopsByIds = getStopsByIds(queryBean);
 				stopsByIds.getStops().addAll(result.getStops());
 				result.setStops(stopsByIds.getStops());
 			}
 		}
-		
+
 		return result;
 
 	}
@@ -172,24 +192,32 @@ class StopsBeanServiceImpl implements StopsBeanService {
 		Date date = queryBean.getDate();
 		double minScoreToKeep = queryBean.getMinScoreToKeep();
 
-		String stopIds = queryBean.getStopIds();
+		List<String> stopIds = queryBean.getStopIds();
 
-		SearchResult<AgencyAndId> stops = new SearchResult<>();
-		try {
-			if (stopIds != null) {
-				stops = _searchService.searchForStopsById(stopIds, maxCount, minScoreToKeep);
-			}
-		} catch (ParseException e) {
-			throw new InvalidArgumentServiceException("ids", "queryParseError");
-		} catch (IOException e) {
-			_log.error("error executing stop search: ids=" + stopIds, e);
-			e.printStackTrace();
-			throw new ServiceException();
+		List<AgencyAndId> stops = new ArrayList<>();
+
+		for (String id : stopIds) {
+			AgencyAndId agencyAndId = AgencyAndId.convertFromString(id);
+			stops.add(agencyAndId);
 		}
+
+		// SearchResult<AgencyAndId> stops = new SearchResult<>();
+		// try {
+		// if (stopIds != null) {
+		// stops = _searchService.searchForStopsById(stopIds, maxCount, minScoreToKeep);
+		// }
+		// } catch (ParseException e) {
+		// throw new InvalidArgumentServiceException("ids", "queryParseError");
+		// } catch (IOException e) {
+		// _log.error("error executing stop search: ids=" + stopIds, e);
+		// e.printStackTrace();
+		// throw new ServiceException();
+		// }
 
 		List<StopBean> stopBeans = new ArrayList<StopBean>();
 
-		for (AgencyAndId aid : stops.getResults()) {
+		// for (AgencyAndId aid : stops.getResults()) {
+		for (AgencyAndId aid : stops) {
 			StopBean stopBean = (date == null) ? _stopBeanService.getStopForId(aid)
 					: _stopBeanService.getStopForIdAndDate(aid, date);
 

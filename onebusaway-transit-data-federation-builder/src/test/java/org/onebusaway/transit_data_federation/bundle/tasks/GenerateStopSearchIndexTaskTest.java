@@ -85,7 +85,6 @@ public class GenerateStopSearchIndexTaskTest {
     StopEntryImpl stopA = stop("111", 0, 0);
     StopEntryImpl stopB = stop("222", 0, 0);
     StopEntryImpl stopC = stop("333", 0, 0);
-    StopEntryImpl stopD = stop("FIX:111", 0, 0);
 
     StopNarrative.Builder stopNarrativeA = StopNarrative.builder();
     stopNarrativeA.setCode("111");
@@ -97,13 +96,9 @@ public class GenerateStopSearchIndexTaskTest {
     StopNarrative.Builder stopNarrativeC = StopNarrative.builder();
     stopNarrativeC.setCode("444");
     stopNarrativeC.setName("CCC Station");
-    
-    StopNarrative.Builder stopNarrativeD = StopNarrative.builder();
-    stopNarrativeD.setCode("FIX:111");
-    stopNarrativeD.setName("DDD Station");
 
     Mockito.when(_transitGraphDao.getAllStops()).thenReturn(
-        Arrays.asList((StopEntry) stopA, stopB, stopC, stopD));
+        Arrays.asList((StopEntry) stopA, stopB, stopC));
 
     Mockito.when(_narrativeService.getStopForId(stopA.getId())).thenReturn(
         stopNarrativeA.create());
@@ -111,8 +106,6 @@ public class GenerateStopSearchIndexTaskTest {
         stopNarrativeB.create());
     Mockito.when(_narrativeService.getStopForId(stopC.getId())).thenReturn(
         stopNarrativeC.create());
-    Mockito.when(_narrativeService.getStopForId(stopD.getId())).thenReturn(
-        stopNarrativeD.create());
 
     _task.run();
 
@@ -133,12 +126,6 @@ public class GenerateStopSearchIndexTaskTest {
 
     ids = searchService.searchForStopsByCode("444", 10, MIN_SCORE);
     assertEquals(1, ids.size());
-    assertTrue(ids.getResults().contains(new AgencyAndId("1", "333")));
-    
-    ids = searchService.searchForStopsById("111;222;333", 10, 0);
-    assertEquals(3, ids.size());
-    assertTrue(ids.getResults().contains(new AgencyAndId("1", "111")));
-    assertTrue(ids.getResults().contains(new AgencyAndId("1", "222")));
     assertTrue(ids.getResults().contains(new AgencyAndId("1", "333")));
   }
 }
