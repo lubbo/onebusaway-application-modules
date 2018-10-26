@@ -16,6 +16,9 @@
 package org.onebusaway.api.actions.api.where;
 
 import java.io.IOException;
+import java.util.Arrays;
+import java.util.Date;
+import java.util.List;
 
 import org.apache.struts2.rest.DefaultHttpHeaders;
 import org.onebusaway.api.actions.api.ApiActionSupport;
@@ -27,8 +30,8 @@ import org.onebusaway.exceptions.ServiceException;
 import org.onebusaway.geospatial.model.CoordinateBounds;
 import org.onebusaway.geospatial.services.SphericalGeometryLibrary;
 import org.onebusaway.transit_data.model.SearchQueryBean;
-import org.onebusaway.transit_data.model.StopsBean;
 import org.onebusaway.transit_data.model.SearchQueryBean.EQueryType;
+import org.onebusaway.transit_data.model.StopsBean;
 import org.onebusaway.transit_data.services.TransitDataService;
 import org.springframework.beans.factory.annotation.Autowired;
 
@@ -60,6 +63,12 @@ public class StopsForLocationAction extends ApiActionSupport {
   private MaxCountSupport _maxCount = new MaxCountSupport(100, 250);
 
   private String _query;
+  
+  private String _name;
+  
+  private String _stopIds;
+  
+  private Date _date;
 
   public StopsForLocationAction() {
     super(LegacyV1ApiSupport.isDefaultToV1() ? V1 : V2);
@@ -88,10 +97,22 @@ public class StopsForLocationAction extends ApiActionSupport {
   public void setQuery(String query) {
     _query = query;
   }
+  
+  public void setName(String name) {
+    _name = name;
+  }
+  
+  public void setDate(Date date) {
+  		_date = date;
+  }
 
   public void setMaxCount(int maxCount) {
     _maxCount.setMaxCount(maxCount);
   }
+  
+	public void setStopIds(String stopIds) {
+		_stopIds = stopIds;
+	}
 
   public DefaultHttpHeaders index() throws IOException, ServiceException {
 
@@ -109,9 +130,18 @@ public class StopsForLocationAction extends ApiActionSupport {
     searchQuery.setBounds(bounds);
     searchQuery.setMaxCount(maxCount);
     searchQuery.setType(EQueryType.BOUNDS);
+    //TODO: check and set null
+    searchQuery.setDate(_date);
+    
     if (_query != null) {
       searchQuery.setQuery(_query);
       searchQuery.setType(EQueryType.BOUNDS_OR_CLOSEST);
+    } else if (_name != null) {
+    		searchQuery.setName(_name);
+      searchQuery.setType(EQueryType.BOUNDS_OR_CLOSEST);
+    } else if (_stopIds != null) {
+    	String[] ids = _stopIds.split(";");
+    	searchQuery.setStopIds(Arrays.asList(ids));
     }
 
     try {
@@ -152,7 +182,7 @@ public class StopsForLocationAction extends ApiActionSupport {
       return SphericalGeometryLibrary.boundsFromLatLonOffset(_lat, _lon,
           _latSpan / 2, _lonSpan / 2);
     } else {
-      if (_query != null)
+    	if (_query != null)
         return SphericalGeometryLibrary.bounds(_lat, _lon,
             DEFAULT_SEARCH_RADIUS_WITH_QUERY);
       else
@@ -160,4 +190,6 @@ public class StopsForLocationAction extends ApiActionSupport {
             DEFAULT_SEARCH_RADIUS_WITHOUT_QUERY);
     }
   }
+
+	
 }

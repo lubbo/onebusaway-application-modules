@@ -15,6 +15,8 @@
  */
 package org.onebusaway.transit_data_federation.services.beans;
 
+import java.util.Date;
+
 import org.onebusaway.exceptions.NoSuchStopServiceException;
 import org.onebusaway.gtfs.model.AgencyAndId;
 import org.onebusaway.gtfs.model.Stop;
@@ -30,4 +32,6 @@ public interface StopBeanService {
    *           not be found
    */
   public StopBean getStopForId(AgencyAndId stopId);
+  
+  public StopBean getStopForIdAndDate(AgencyAndId stopId, Date date);
 }

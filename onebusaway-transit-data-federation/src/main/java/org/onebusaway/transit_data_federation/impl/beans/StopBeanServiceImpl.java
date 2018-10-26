@@ -19,19 +19,26 @@ package org.onebusaway.transit_data_federation.impl.beans;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
+import java.util.Date;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
 import org.onebusaway.container.cache.Cacheable;
 import org.onebusaway.exceptions.NoSuchStopServiceException;
 import org.onebusaway.gtfs.model.AgencyAndId;
+import org.onebusaway.gtfs.model.calendar.ServiceDate;
 import org.onebusaway.transit_data.model.RouteBean;
 import org.onebusaway.transit_data.model.StopBean;
+import org.onebusaway.transit_data.model.StopRouteDirectionScheduleBean;
+import org.onebusaway.transit_data.model.StopRouteScheduleBean;
+import org.onebusaway.transit_data.model.StopTimeInstanceBean;
 import org.onebusaway.transit_data_federation.model.narrative.StopNarrative;
 import org.onebusaway.transit_data_federation.services.AgencyAndIdLibrary;
 import org.onebusaway.transit_data_federation.services.RouteService;
 import org.onebusaway.transit_data_federation.services.beans.RouteBeanService;
 import org.onebusaway.transit_data_federation.services.beans.StopBeanService;
+import org.onebusaway.transit_data_federation.services.beans.StopScheduleBeanService;
 import org.onebusaway.transit_data_federation.services.narrative.NarrativeService;
 import org.onebusaway.transit_data_federation.services.transit_graph.StopEntry;
 import org.onebusaway.transit_data_federation.services.transit_graph.TransitGraphDao;
@@ -52,6 +59,8 @@ class StopBeanServiceImpl implements StopBeanService {
   private RouteBeanService _routeBeanService;
 
   private NarrativeService _narrativeService;
+  
+  private StopScheduleBeanService _stopScheduleBeanService;
 
   @Autowired
   public void setTranstiGraphDao(TransitGraphDao transitGraphDao) {
@@ -72,6 +81,11 @@ class StopBeanServiceImpl implements StopBeanService {
   public void setNarrativeService(NarrativeService narrativeService) {
     _narrativeService = narrativeService;
   }
+  
+  @Autowired
+  public void setStopScheduleBeanService(StopScheduleBeanService stopScheduleBeanService) {
+  		_stopScheduleBeanService = stopScheduleBeanService;
+  }
 
   @Cacheable
   public StopBean getStopForId(AgencyAndId id) {
@@ -88,6 +102,63 @@ class StopBeanServiceImpl implements StopBeanService {
     fillRoutesForStopBean(stop, sb);
     return sb;
   }
+  
+  @Cacheable
+  public StopBean getStopForIdAndDate(AgencyAndId id, Date date) {
+
+    StopEntry stop = _transitGraphDao.getStopEntryForId(id);
+    StopNarrative narrative = _narrativeService.getStopForId(id);
+
+    if (stop == null)
+      throw new NoSuchStopServiceException(
+          AgencyAndIdLibrary.convertToString(id));
+
+    StopBean sb = new StopBean();
+    fillStopBean(stop, narrative, sb);
+    fillRoutesForStopBeanAndDate(stop, sb, date);
+    return sb;
+  }
+  
+  private boolean isScheduleServingStop(StopEntry stop, StopRouteScheduleBean schedule) {
+		List<StopRouteDirectionScheduleBean> directions = schedule.getDirections();
+		for (StopRouteDirectionScheduleBean direction : directions) {
+			List<StopTimeInstanceBean> stopTimes = direction.getStopTimes();
+			for (StopTimeInstanceBean stopTime : stopTimes) {
+				if (stopTime.isDepartureEnabled()) {
+					return true;
+				}
+			}
+		}
+		return false;
+  }
+  
+  private void fillRoutesForStopBeanAndDate(StopEntry stop, StopBean sb, Date date) {
+
+//    Set<AgencyAndId> routeCollectionIds = _routeService.getRouteCollectionIdsForStop(stop.getId());
+//    List<RouteBean> routeBeansOld = new ArrayList<RouteBean>(routeCollectionIds.size());
+//		for (AgencyAndId routeCollectionId : routeCollectionIds) {
+//			RouteBean bean = _routeBeanService.getRouteForId(routeCollectionId);
+//			routeBeansOld.add(bean);
+//		}
+//		Collections.sort(routeBeansOld, _routeBeanComparator);
+    
+    Set<RouteBean> routeBeans = new HashSet<RouteBean>();
+
+    //Filter routes by time in stop and check pickuptype != 1
+    ServiceDate serviceDate = new ServiceDate(date);
+    List<StopRouteScheduleBean> scheduledArrivalsForStopAndDate = _stopScheduleBeanService.getScheduledArrivalsForStopAndDate(stop.getId(), serviceDate);
+    
+    for(StopRouteScheduleBean schedule : scheduledArrivalsForStopAndDate) {
+    		if(isScheduleServingStop(stop, schedule)) {
+    			routeBeans.add(schedule.getRoute());
+    		}
+    }
+
+    List<RouteBean> routeBeansList = new ArrayList<>(routeBeans);
+    Collections.sort(routeBeansList, _routeBeanComparator);
+
+    sb.setRoutes(routeBeansList);
+  }
 
   private void fillRoutesForStopBean(StopEntry stop, StopBean sb) {
 
@@ -100,7 +171,7 @@ class StopBeanServiceImpl implements StopBeanService {
       RouteBean bean = _routeBeanService.getRouteForId(routeCollectionId);
       routeBeans.add(bean);
     }
-
+    
     Collections.sort(routeBeans, _routeBeanComparator);
 
     sb.setRoutes(routeBeans);
